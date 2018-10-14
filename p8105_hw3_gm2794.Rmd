@@ -8,3 +8,200 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+```{r}
+library(tidyverse)
+devtools::install_github("thomasp85/patchwork")
+library(patchwork)
+```
+
+## Problem 1
+
+First, do some data cleaning: format the data to use appropriate variable names; focus on the “Overall Health” topic; include only responses from “Excellent” to “Poor”; organize responses as a factor taking levels ordered from “Excellent” to “Poor”.
+
+```{r}
+devtools::install_github("p8105/p8105.datasets")
+library(p8105.datasets)
+b_data <- p8105.datasets::brfss_smart2010 %>%
+  janitor::clean_names() %>%
+  rename(state = locationabbr, county = locationdesc) %>%
+  filter(topic == "Overall Health" & (response == "Excellent" | response == "Very good" |  response == "Good" | response == "Fair" | response == "Poor")) %>% 
+  mutate(response = factor(response, level = c("Excellent","Very good", "Good", "Fair", "Poor")))
+```
+
+Using this dataset, do or answer the following (commenting on the results of each):
+In 2002, which states were observed at 7 locations? Connecticut, Florida and North Carolina had each 7 observed counties.
+
+```{r}
+b_data %>% 
+  filter(year == 2002) %>% 
+  group_by(state) %>% 
+  summarize(numberlocation = n_distinct(county)) %>% 
+  filter(numberlocation == 7)
+```
+
+Make a “spaghetti plot” that shows the number of locations in each state from 2002 to 2010. Florida has had increases and decreases in the number of locations, while the rest of states have remained mostly stable.
+
+```{r}
+bnumberlocation_data = b_data %>% 
+  group_by(year, state) %>% 
+  summarize(numberlocation = n_distinct(county)) 
+ggplot(bnumberlocation_data, aes(x = year, y = numberlocation, color = state)) +
+  geom_line() +
+  labs(
+    title = "Location number per state",
+    x = "year",
+    y = "location number"
+  )
+  
+```
+
+Make a table showing, for the years 2002, 2006, and 2010, the mean and standard deviation of the proportion of “Excellent” responses across locations in NY State. The table shows stable mean and SD for the proportion of "excellent" responses, with a somewhat higher mean and SD in 2002 than those in 2006, 2010.
+
+```{r}
+b_data %>% 
+  filter(
+    year %in% c(2002, 2006, 2010) & 
+    response == "Excellent" & 
+    state == "NY"
+    ) %>% 
+  group_by(year) %>% 
+  summarize(
+    mexcellent = mean(data_value, na.rm = TRUE), 
+    sexcellent = sd(data_value)
+    ) %>% 
+  knitr::kable(digits = 1)
+```
+
+For each year and state, compute the average proportion in each response category (taking the average across locations in a state). Make a five-panel plot that shows, for each response category separately, the distribution of these state-level averages over time. Very good has the highest proportion. Poor has the lowest proportion. 
+
+```{r}
+bprop_data = b_data %>% 
+  group_by(year, state, response) %>% 
+  summarize(meanvalue = mean(data_value, na.rm = TRUE)) 
+
+bprop_data %>%
+  ggplot(aes(x = year, y = meanvalue, color = state)) +
+  geom_line() +
+  labs(
+    title = "State-level responses over time",
+    x = "year",
+    y = "average proportion"
+  ) +
+  facet_wrap (~ response)
+```
+
+## Problem 2
+
+The goal is to do some exploration of this dataset. To that end, write a short description of the dataset, noting the size and structure of the data, describing some key variables, and giving illstrative examples of observations. 
+
+```{r}
+data("instacart")
+
+instacart %>%
+  group_by(order_id) %>%
+summarize(n = n())
+
+instacart %>%
+  group_by(product_id) %>%
+summarize(n = n())
+
+instacart %>% 
+  group_by(order_id) %>% 
+  summarize( n_product = n_distinct(product_id))
+
+instacart %>%
+  group_by(user_id) %>%
+summarize(n = n())
+```
+
+RESPONDER
+
+Then, do or answer the following (commenting on the results of each):
+
+How many aisles are there, and which aisles are the most items ordered from? There are 134 different aisles; most items are ordered from vegetables.
+
+```{r}
+instacart %>%
+  group_by(aisle) %>%
+summarize(n = n()) %>%
+arrange(desc(n))
+```
+
+Make a plot that shows the number of items ordered in each aisle. Order aisles sensibly, and organize your plot so others can read it.
+
+FALTA PLOT
+
+Make a table showing the most popular item in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Most frequent items in these aisles are, respectively: light brown sugar (499), snack sticks chicken and rice recipe dog treats (30) and organic baby spinach (9784).
+
+```{r}
+instacart %>% 
+  filter(aisle %in% c("baking ingredients",
+                      "dog food care", 
+                      "packaged vegetables fruits")) %>% 
+  group_by(aisle, product_name) %>% 
+  summarize(n = n()) %>% 
+  mutate(n_ranking = min_rank(desc(n))) %>% 
+  filter(n_ranking < 2) %>% 
+  knitr::kable()
+```
+
+Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week; format this table for human readers (i.e. produce a 2 x 7 table). Sales of coffee ice cream are belated with respect to pink lady apples.
+
+```{r}
+instacart %>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>% 
+  mutate(order_day = ordered(order_dow, labels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) %>% 
+  group_by(product_name, order_day) %>% 
+  summarize(mhour = mean(order_hour_of_day)) %>% 
+  spread(key = order_day, value = mhour) %>% 
+  knitr::kable()
+```
+
+The goal is to do some exploration of this dataset. To that end, write a short description of the dataset, noting the size and structure of the data, describing some key variables, and indicating the extent to which missing data is an issue. Then, do or answer the following (commenting on the results of each):
+
+```{r}
+data("ny_noaa")
+
+ny_noaa %>%
+  group_by(id) %>%
+summarize(n = n())
+
+ny_noaa %>%
+  group_by(date) %>%
+summarize(n = n())
+
+
+ny_noaa %>%
+  group_by(id, date) %>%
+summarize(mean_depth = mean(snwd),
+          mean_prcp = mean (prcp))
+
+date_range = ny_noaa %>% 
+  arrange(date) 
+head(date_range)
+tail(date_range)
+```
+
+
+Do some data cleaning. Create separate variables for year, month, and day. Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. For snowfall, what are the most commonly observed values? Why?
+
+```{r}
+nyclean_data = ny_noaa %>% 
+  janitor::clean_names() %>% 
+  separate(date, into = c("year", "month", "day"), sep = "-") %>% 
+  mutate(prcp = prcp / 10, tmax = as.numeric(tmax) / 10, tmin = as.numeric(tmin) / 10)
+
+nyclean_data %>% 
+  group_by(snow) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
+```
+
+Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
+Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
+
+
+
+
+
