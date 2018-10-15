@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 devtools::install_github("thomasp85/patchwork")
 library(patchwork)
+install.packages("magrittr")
+library(magrittr)
 ```
 
 ## Problem 1
@@ -115,7 +117,7 @@ instacart %>%
 summarize(n = n())
 ```
 
-RESPONDER
+-
 
 Then, do or answer the following (commenting on the results of each):
 
@@ -128,9 +130,23 @@ summarize(n = n()) %>%
 arrange(desc(n))
 ```
 
-Make a plot that shows the number of items ordered in each aisle. Order aisles sensibly, and organize your plot so others can read it.
+Make a plot that shows the number of items ordered in each aisle. Order aisles sensibly, and organize your plot so others can read it. I am plotting the top 50 aisles, because if not the plot could not be read, and showing them in descending order.
 
-FALTA PLOT
+```{r}
+instacart %>% 
+  group_by(aisle) %>% 
+  summarize(n = n()) %>%
+  mutate(aisle = reorder(aisle, desc(n))) %>% 
+  filter(min_rank(aisle) < 50) %>% 
+   ggplot(
+       aes(x = aisle, y = n)) +
+  geom_point() +
+  labs(
+    x = "aisle",
+    y = "number of items"
+  )  +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
 
 Make a table showing the most popular item in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Most frequent items in these aisles are, respectively: light brown sugar (499), snack sticks chicken and rice recipe dog treats (30) and organic baby spinach (9784).
 
@@ -158,6 +174,8 @@ instacart %>%
   knitr::kable()
 ```
 
+## Problem 3
+
 The goal is to do some exploration of this dataset. To that end, write a short description of the dataset, noting the size and structure of the data, describing some key variables, and indicating the extent to which missing data is an issue. Then, do or answer the following (commenting on the results of each):
 
 ```{r}
@@ -184,23 +202,60 @@ tail(date_range)
 ```
 
 
-Do some data cleaning. Create separate variables for year, month, and day. Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. For snowfall, what are the most commonly observed values? Why?
+Do some data cleaning. Create separate variables for year, month, and day. Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. For snowfall, what are the most commonly observed values? Why? The most common value for snowfall is 0 because it does not snow frequently.
 
 ```{r}
 nyclean_data = ny_noaa %>% 
   janitor::clean_names() %>% 
   separate(date, into = c("year", "month", "day"), sep = "-") %>% 
-  mutate(prcp = prcp / 10, tmax = as.numeric(tmax) / 10, tmin = as.numeric(tmin) / 10)
+  mutate(tmax = as.numeric(tmax), tmin = as.numeric(tmin))
 
 nyclean_data %>% 
   group_by(snow) %>% 
   summarize(n = n()) %>% 
   arrange(desc(n))
+
 ```
 
-Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
+Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers? January is colder than July, in every year studied. Almost every year has an outlier, either a very cold or a very hot value.
+
+```{r}
+ nyclean_data %>% 
+  filter(month %in% c("01","07")) %>% 
+  group_by(year, month, id) %>% 
+  summarize(average_max = mean(tmax, na.rm = TRUE)) %>% 
+  ggplot(aes(x = year, y = average_max, fill = month)) +
+  geom_boxplot() +
+  labs(
+    x = "year",
+    y = "average max temperature (C)"
+  )  + 
+  facet_grid(~ month) 
+```
+
 Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
 
+```{r}
+nycleantemp_data= nyclean_data %>% 
+  ggplot(aes(x = tmax, y = tmin)) +
+  geom_hex() +
+    labs(
+      x = "max T",
+      y = "min T"
+    ) +
+  facet_grid(~ month)
+
+nycleansnow_data=nyclean_data %>% 
+  filter(snow > 0 & snow < 100) %>% 
+  ggplot(aes(x = year, y = snow, fill = year)) +
+  geom_boxplot() +
+    labs(
+      x = "Year",
+      y = "Snow"
+    )
+
+nycleantemp_data / nycleansnow_data
+```
 
 
 
